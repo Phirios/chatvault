@@ -51,10 +51,7 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .merge(api_router(state))
-        .nest_service(
-            "/",
-            ServeDir::new(config.public_dir).append_index_html_on_directories(true),
-        )
+        .fallback_service(ServeDir::new(config.public_dir).append_index_html_on_directories(true))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
