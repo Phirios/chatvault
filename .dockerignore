@@ -4,6 +4,7 @@
 **/dist
 **/node_modules
 **/.output
+**/target
 **/.env
 .idea
 compose*.yml
