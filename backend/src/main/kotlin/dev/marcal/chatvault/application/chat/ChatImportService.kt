@@ -13,9 +13,10 @@ import dev.marcal.chatvault.domain.repository.ChatRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.BufferedInputStream
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+import java.io.FileInputStream
 import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.LocalDateTime
 import java.util.zip.ZipInputStream
 
@@ -70,38 +71,38 @@ class ChatImportService(
                 ?: throw ChatImporterException("Chat id $chatId was not found. File import failed.")
         val bucket = chatBucketInfo.bucket.withPath("/")
 
-        val zipInputStream = ZipInputStream(BufferedInputStream(inputStream))
+        ZipInputStream(BufferedInputStream(inputStream)).use { zipInputStream ->
+            var entry = zipInputStream.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    val fileName = entry.name
+                    val tempFile = Files.createTempFile("chatvault-import-", ".entry")
 
-        var entry = zipInputStream.nextEntry
-        while (entry != null) {
-            val fileName = entry.name
+                    try {
+                        Files.copy(zipInputStream, tempFile, StandardCopyOption.REPLACE_EXISTING)
 
-            val byteArray = bytes(zipInputStream)
-            bucketService.save(BucketFile(bytes = byteArray, fileName = fileName, address = bucket))
+                        FileInputStream(tempFile.toFile()).use { fileStream ->
+                            bucketService.save(BucketFile(stream = fileStream, fileName = fileName, address = bucket))
+                        }
 
-            if (ChatNamePatternMatcher.matches(fileName)) {
-                execute(
-                    chatId = chatId,
-                    inputStream = ByteArrayInputStream(byteArray),
-                    fileType = FileTypeInputEnum.TEXT,
-                )
+                        if (ChatNamePatternMatcher.matches(fileName)) {
+                            FileInputStream(tempFile.toFile()).use { textStream ->
+                                execute(
+                                    chatId = chatId,
+                                    inputStream = textStream,
+                                    fileType = FileTypeInputEnum.TEXT,
+                                )
+                            }
+                        }
+                    } finally {
+                        Files.deleteIfExists(tempFile)
+                    }
+                }
+
+                zipInputStream.closeEntry()
+                entry = zipInputStream.nextEntry
             }
-
-            entry = zipInputStream.nextEntry
         }
-        zipInputStream.close()
-    }
-
-    private fun bytes(zipInputStream: ZipInputStream): ByteArray {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        val buffer = ByteArray(1024)
-        var len: Int
-
-        while (zipInputStream.read(buffer).also { len = it } > 0) {
-            byteArrayOutputStream.write(buffer, 0, len)
-        }
-
-        return byteArrayOutputStream.toByteArray()
     }
 
     private fun createMessages(

@@ -10,6 +10,7 @@ import dev.marcal.chatvault.domain.model.BucketFile
 import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.InputStreamResource
 import org.springframework.core.io.Resource
 import org.springframework.core.io.UrlResource
@@ -26,6 +27,11 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 @Service
+@ConditionalOnProperty(
+    name = ["chatvault.bucket.provider"],
+    havingValue = "filesystem",
+    matchIfMissing = true,
+)
 class BucketServiceImpl(
     @Value("\${chatvault.bucket.root}") val bucketRootPath: String,
     @Value("\${chatvault.bucket.import}") val bucketImportPath: String,
