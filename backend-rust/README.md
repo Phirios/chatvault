@@ -1,6 +1,6 @@
 # ChatVault Rust backend
 
-This is an API-compatible Rust replacement for the original Kotlin/Spring ChatVault backend.
+This is an API-compatible Rust replacement for the original ChatVault backend.
 
 Current target:
 
@@ -9,10 +9,7 @@ Current target:
 - WhatsApp `.txt` and `.zip` import
 - Frontend-compatible `/api` routes
 - Static frontend serving
-
-Not yet ported:
-
-- IMAP/email importer
+- Optional IMAP/email importer
 
 ## Configuration
 
@@ -34,4 +31,10 @@ Optional:
 - `CHATVAULT_BUCKET_PROVIDER` default `s3`, can be `filesystem`
 - `CHATVAULT_BUCKET_ROOT` used only for filesystem storage
 - `CHATVAULT_MSGPARSER_DATEFORMAT`
-
+- `CHATVAULT_EMAIL_ENABLED` default `false`
+- `CHATVAULT_EMAIL_HOST`
+- `CHATVAULT_EMAIL_PORT` default `993`
+- `CHATVAULT_EMAIL_USERNAME`
+- `CHATVAULT_EMAIL_PASSWORD`
+- `CHATVAULT_EMAIL_FIXED_DELAY_MS` default `10000`
+- `CHATVAULT_EMAIL_SUBJECT_STARTS_WITH` default `chat-vault,Conversa do WhatsApp com`

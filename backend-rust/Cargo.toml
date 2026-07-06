@@ -9,6 +9,8 @@ async-trait = "0.1"
 axum = { version = "0.8", features = ["multipart"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures-util = "0.3"
+imap = { version = "3.0.0-alpha.15", default-features = false, features = ["rustls-tls"] }
+mail-parser = "0.11.4"
 regex = "1"
 rust-s3 = { version = "0.35", default-features = false, features = ["tokio-rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
@@ -22,4 +24,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 urlencoding = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
-

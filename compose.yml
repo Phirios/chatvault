@@ -14,14 +14,15 @@ services:
   chatvault:
     build: ./
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/chatvault
-      - SPRING_DATASOURCE_USERNAME=usr_chatvault
-      - SPRING_DATASOURCE_PASSWORD=secret
+      - DATABASE_URL=postgres://usr_chatvault:secret@database:5432/chatvault
+      - CHATVAULT_BUCKET_PROVIDER=filesystem
+      - CHATVAULT_BUCKET_ROOT=/opt/chatvault/archive
+      - CHATVAULT_IMPORT_DIR=/opt/chatvault/import
+      - CHATVAULT_SCRATCH_DIR=/opt/chatvault/scratch
       - CHATVAULT_MSGPARSER_DATEFORMAT=dd/MM/yyyy HH:mm
     ports:
       - 8080:8080
     volumes:
       - '/opt/chatvault:/opt/chatvault'
-      - './config:/config'
     depends_on:
       - database

@@ -1,5 +1,6 @@
 mod config;
 mod db;
+mod email;
 mod error;
 mod models;
 mod parser;
@@ -18,6 +19,7 @@ use tracing::info;
 use crate::{
     config::{env_parse, env_required, load_config},
     db::migrate,
+    email::maybe_start_email_importer,
     routes::api_router,
     state::AppState,
     storage::build_storage,
@@ -45,6 +47,7 @@ async fn main() -> Result<()> {
         storage: build_storage()?,
         config: config.clone(),
     };
+    maybe_start_email_importer(state.clone())?;
 
     let app = Router::new()
         .merge(api_router(state))

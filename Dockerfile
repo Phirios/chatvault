@@ -8,31 +8,32 @@ COPY --link ./frontend .
 RUN npm run generate
 RUN npm prune
 
-FROM amazoncorretto:21-alpine AS backend_builder
+FROM rust:1-bookworm AS backend_builder
 
-WORKDIR /app
+WORKDIR /app/backend-rust
 
-COPY ./backend/gradle ./backend/gradle
-COPY ./backend/gradlew ./backend/gradlew
-COPY ./backend/gradlew.bat ./backend/gradlew.bat
-COPY ./backend/settings.gradle.kts ./backend/settings.gradle.kts
-COPY ./backend/build.gradle.kts ./backend/build.gradle.kts
+COPY ./backend-rust/Cargo.toml ./backend-rust/Cargo.lock* ./
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs && cargo build --release
 
-WORKDIR /app/backend
-RUN ./gradlew build -x test --no-daemon || return 0
+COPY ./backend-rust/src ./src
+RUN touch src/main.rs && cargo build --release
 
-COPY ./backend/src ./src
+FROM debian:bookworm-slim
 
-RUN ./gradlew clean build --no-daemon -PskipIntegrationTests=true
-
-FROM amazoncorretto:21-alpine
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=frontend_builder /app/.output/public /app/public
-COPY --from=backend_builder /app/backend/build/libs/*.jar chatvault.jar
+COPY --from=backend_builder /app/backend-rust/target/release/chatvault /app/chatvault
 
-VOLUME /config
+ENV BIND=0.0.0.0:8080
+ENV CHATVAULT_PUBLIC_DIR=/app/public
+ENV CHATVAULT_SCRATCH_DIR=/tmp/chatvault
+ENV CHATVAULT_BUCKET_PROVIDER=s3
+
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "chatvault.jar", "--spring.config.additional-location=file:/config/", "--spring.web.resources.static-locations=file:/app/public"]
+ENTRYPOINT ["/app/chatvault"]

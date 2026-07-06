@@ -412,6 +412,16 @@ async fn disk_import(State(state): State<AppState>) -> Result<StatusCode, AppErr
     Ok(StatusCode::NO_CONTENT)
 }
 
+pub async fn import_file_for_chat_name(
+    state: &AppState,
+    chat_name: &str,
+    path: &Path,
+    filename: &str,
+) -> Result<(), AppError> {
+    let chat_id = find_or_create_chat(&state.db, chat_name).await?;
+    import_file(state, chat_id, path, filename).await
+}
+
 async fn export_chat(
     State(state): State<AppState>,
     AxumPath(chat_id): AxumPath<i64>,
@@ -536,7 +546,11 @@ async fn import_text(
         sqlx::query(
             r#"
             INSERT INTO message(author, author_type, created_at, content, attachment_path, attachment_name, chat_id, external_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            SELECT $1, $2, $3, $4, $5, $6, $7, $8
+            WHERE NOT EXISTS (
+                SELECT 1 FROM message
+                WHERE chat_id = $7 AND created_at = $3 AND author = $1 AND content = $4
+            )
             ON CONFLICT (external_id) DO NOTHING
             "#,
         )
@@ -571,7 +585,11 @@ async fn insert_new_message(state: &AppState, input: NewMessageInput) -> Result<
     sqlx::query(
         r#"
         INSERT INTO message(author, author_type, created_at, content, attachment_path, attachment_name, chat_id, external_id)
-        VALUES ($1, 'USER', $2, $3, $4, $5, $6, $7)
+        SELECT $1, 'USER', $2, $3, $4, $5, $6, $7
+        WHERE NOT EXISTS (
+            SELECT 1 FROM message
+            WHERE chat_id = $6 AND created_at = $2 AND author = $1 AND content = $3
+        )
         ON CONFLICT (external_id) DO NOTHING
         "#,
     )
