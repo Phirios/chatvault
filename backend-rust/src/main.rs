@@ -10,7 +10,7 @@ mod state;
 mod storage;
 
 use anyhow::{Context, Result};
-use axum::Router;
+use axum::{extract::DefaultBodyLimit, Router};
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, services::ServeDir, trace::TraceLayer};
@@ -52,6 +52,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .merge(api_router(state))
         .fallback_service(ServeDir::new(config.public_dir).append_index_html_on_directories(true))
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024 * 1024))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 

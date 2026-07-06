@@ -8,6 +8,8 @@ const clickModal = ref(false)
 const chatImportRef = ref(null)
 const errorMessage = ref(undefined)
 const disableUpload = ref(true)
+const uploadProgress = ref(0)
+const uploadState = ref<'idle' | 'uploading' | 'processing' | 'done' | 'error'>('idle')
 const modalClass = computed(() => {
   return {
     'fade show d-block': !!clickModal.value
@@ -43,6 +45,9 @@ function toggleModal() {
 async function onFilePicked() {
   if (chatImportRef?.value?.files && chatImportRef?.value?.files[0]) {
     disableUpload.value = false
+    uploadProgress.value = 0
+    uploadState.value = 'idle'
+    errorMessage.value = undefined
   }
 }
 
@@ -51,18 +56,45 @@ async function uploadFile() {
     store.loading = true
     const form = new FormData()
     form.append("file", chatImportRef.value.files[0]);
-    $fetch(importChatPath.value, {
-      method: "POST",
-      body: form
+    uploadState.value = 'uploading'
+    uploadProgress.value = 0
+    uploadWithProgress(importChatPath.value, form, (percent) => {
+      uploadProgress.value = percent
+      if (percent >= 100) {
+        uploadState.value = 'processing'
+      }
     }).then(() => {
       store.loading = false
+      uploadState.value = 'done'
       chatImportRef.value = null
       store.clearMessages()
     }).catch(e => {
       store.loading = false
-      errorMessage.value = e.data.detail
+      uploadState.value = 'error'
+      errorMessage.value = e.message || 'Upload failed'
     })
   }
+}
+
+function uploadWithProgress(url: string, form: FormData, onProgress: (percent: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', url)
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    }
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve()
+      } else {
+        reject(new Error(request.responseText || `Upload failed with status ${request.status}`))
+      }
+    }
+    request.onerror = () => reject(new Error('Network error during upload'))
+    request.send(form)
+  })
 }
 
 watch(
@@ -121,6 +153,16 @@ watch(
                 <button type="button" :disabled="disableUpload" @click="uploadFile"
                         class="btn btn-outline-secondary ml-2">{{ t('upload') }}
                 </button>
+              </div>
+              <div v-if="uploadState !== 'idle'" class="mt-3">
+                <div class="progress" v-if="uploadState === 'uploading' || uploadState === 'processing'">
+                  <div class="progress-bar" role="progressbar" :style="{ width: uploadProgress + '%' }">
+                    {{ uploadProgress }}%
+                  </div>
+                </div>
+                <small class="text-muted" v-if="uploadState === 'uploading'">Uploading archive...</small>
+                <small class="text-muted" v-else-if="uploadState === 'processing'">Upload complete. Processing import on server...</small>
+                <small class="text-success" v-else-if="uploadState === 'done'">Import finished.</small>
               </div>
             </div>
 
