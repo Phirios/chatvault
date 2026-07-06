@@ -5,14 +5,16 @@ use uuid::Uuid;
 use crate::models::{ChatLastMessageOutput, MessageOutput};
 
 pub async fn migrate(db: &PgPool) -> Result<()> {
-    sqlx::query(
+    let statements = [
         r#"
         CREATE TABLE IF NOT EXISTS chat (
             id BIGSERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             external_id TEXT UNIQUE,
             bucket TEXT NOT NULL
-        );
+        )
+        "#,
+        r#"
         CREATE TABLE IF NOT EXISTS message (
             id BIGSERIAL PRIMARY KEY,
             author TEXT NOT NULL,
@@ -23,13 +25,16 @@ pub async fn migrate(db: &PgPool) -> Result<()> {
             attachment_name TEXT,
             chat_id BIGINT NOT NULL REFERENCES chat(id) ON DELETE CASCADE,
             external_id TEXT UNIQUE
-        );
-        CREATE INDEX IF NOT EXISTS idx_message_chat_id_id ON message(chat_id, id DESC);
-        CREATE INDEX IF NOT EXISTS idx_message_chat_id_created_at ON message(chat_id, created_at, id);
+        )
         "#,
-    )
-    .execute(db)
-    .await?;
+        "CREATE INDEX IF NOT EXISTS idx_message_chat_id_id ON message(chat_id, id DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_message_chat_id_created_at ON message(chat_id, created_at, id)",
+    ];
+
+    for statement in statements {
+        sqlx::query(statement).execute(db).await?;
+    }
+
     Ok(())
 }
 
